@@ -1,3 +1,6 @@
+.pioenvs
+CMakeListsPrivate.txt
+.idea
 CMakeCache.txt
 CMakeFiles
 CMakeScripts
