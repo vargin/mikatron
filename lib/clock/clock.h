@@ -52,6 +52,7 @@ public:
   uint8_t hour() const        { return hh; }
   uint8_t minute() const      { return mm; }
   uint8_t second() const      { return ss; }
+  char* toString();
   bool operator==(const ClockTime& other);
   bool operator<(const ClockTime& other);
 protected:

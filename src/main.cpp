@@ -1,5 +1,4 @@
 #include <avr/io.h>
-#include <stdlib.h>
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
 #include "config.h"
@@ -13,22 +12,20 @@ ISR(PCINT0_vect) {
   interrupt = true;
 }
 
-void debug(const char *str) {
+void debug(const char *str, bool newLine = true) {
   while (*str) {
     TxByte(*str++);
   }
-}
 
-char numberString[10];
-void debugNumber(uint32_t number) {
-  ltoa(number, numberString, 10);
-  debug(numberString);
+  if (newLine) {
+    TxByte('\n');
+  }
 }
 
 void enablePowerDownMode() {
-  debug("[app] going to power down...");
-
   Speaker::play(MELODY_DOUBLE_BEEP);
+
+  debug("[app] going to power down...");
 
   PORTB &= ~_BV(SPEAKER_UART_PIN);
 
@@ -45,6 +42,16 @@ void enablePowerDownMode() {
   debug("[app] waken up!");
 }
 
+void printAlarm() {
+  debug("[clock] next alarm is ", false);
+  debug(Clock::getAlarm().toString());
+}
+
+void printTime() {
+  debug("[clock] current time is ", false);
+  debug(Clock::getTime().toString());
+}
+
 void setupAlarms() {
   cli();
 
@@ -52,30 +59,19 @@ void setupAlarms() {
   debug("[clock] initialization started.");
 
   // First print current time (for debug purposes).
-  ClockTime time = Clock::getTime();
-
-  debug("[clock] current time is ");
-  debugNumber(time.hour());
-  debug(":");
-  debugNumber(time.minute());
-  debug(":");
-  debugNumber(time.second());
+  printTime();
 
   // Delete all previously saved alarms, to make sure we have the latest ones.
   Clock::clearAlarms();
   debug("[clock] all cleared");
 
+  ClockTime time = Clock::getTime();
   Clock::addAlarm(ClockTime(time.hour(), time.minute() + 1, 0));
+  Clock::addAlarm(ClockTime(time.hour(), time.minute() + 2, 0));
+  Clock::addAlarm(ClockTime(time.hour(), time.minute() + 3, 0));
   debug("[clock] all alarms recorded");
 
-  ClockTime alarm = Clock::getAlarm();
-
-  debug("[clock] current alarm is ");
-  debugNumber(alarm.hour());
-  debug(":");
-  debugNumber(alarm.minute());
-  debug(":");
-  debugNumber(alarm.second());
+  printAlarm();
 
   sei();
 }
@@ -96,14 +92,27 @@ int main(void) {
 
   debug("[app] all setup.");
 
+  Speaker::play(MELODY_MODE);
+
+  interrupt = false;
+
   while (1) {
     if (interrupt) {
       debug("[clock] alarm triggered!");
-      interrupt = false;
 
-      Speaker::play(MELODY_ALARM);
-      Speaker::play(MELODY_ALARM);
-      Speaker::play(MELODY_ALARM);
+      for (uint8_t i = 0; i < 5; i++) {
+        Speaker::play(MELODY_ALARM);
+        _delay_ms(200);
+      }
+
+      debug("[clock] scheduling a new alarm.");
+      Clock::setAlarm(Alarm1Type::MATCH_HOURS, Clock::getNextAlarm());
+
+      printAlarm();
+
+      interrupt = false;
     }
+
+    enablePowerDownMode();
   }
 }

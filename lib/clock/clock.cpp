@@ -49,9 +49,41 @@ bool ClockTime::operator==(const ClockTime &other) {
 }
 
 bool ClockTime::operator<(const ClockTime &other) {
-  return this->hour() <= other.hour() &&
-         this->minute() <= other.minute() &&
-         this->second() < other.second();
+  uint8_t parts[6] = { this->hour(), other.hour(), this->minute(), other.minute(), this->second(), other.second() };
+
+  for (uint8_t i = 0; i < 3; i += 2) {
+    if (parts[i] == parts[i + 1]) {
+      continue;
+    }
+
+    return parts[i] < parts[i + 1];
+  }
+
+  return false;
+}
+
+char* ClockTime::toString() {
+  char resultBuffer[10] = "";
+
+  uint8_t digits[3] = { this->hour(), this->minute(), this->second() };
+
+  for (uint8_t i = 0; i < 3; i++) {
+    char digitBuffer[3];
+
+    utoa(digits[i], digitBuffer, 10);
+
+    if (i != 0) {
+      strcat(resultBuffer, ":");
+    }
+
+    if (digits[i] < 10) {
+      strcat(resultBuffer, "0");
+    }
+
+    strcat(resultBuffer, digitBuffer);
+  }
+
+  return resultBuffer;
 }
 
 void Clock::setTime(const ClockTime& time) {
@@ -149,8 +181,8 @@ ClockTime Clock::getAlarm() {
 
   TinyWireM.requestFrom(RTC_ADDRESS, 3);
   uint8_t ss = bcd2bin(TinyWireM.read() & 0x7F);
-  uint8_t mm = bcd2bin(TinyWireM.read() & 0x7F);
-  uint8_t hh = bcd2bin(TinyWireM.read() & 0x7F);
+  uint8_t mm = bcd2bin(TinyWireM.read());
+  uint8_t hh = bcd2bin(TinyWireM.read());
 
   return ClockTime(hh, mm, ss);
 }
