@@ -8,11 +8,10 @@
 
 #define delayCount r18
 #include <avr/io.h>
-#include "config.h"
 ; correct for avr/io.h 0x20 port offset for io instructions
 #define UART_Port (PORTB-0x20)
-#define UART_Tx SPEAKER_UART_PIN
-#define UART_Rx SPEAKER_UART_PIN
+#define UART_Tx PB1
+#define UART_Rx PB1
 
 ; Supports using only one pin on the AVR for both Tx and Rx
 ;              D1

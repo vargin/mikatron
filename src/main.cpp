@@ -1,10 +1,14 @@
 #include <avr/io.h>
 #include <avr/interrupt.h>
 #include <avr/sleep.h>
-#include "config.h"
-#include "uart.h"
 #include "speaker.h"
 #include "clock.h"
+
+#define DEBUG_ENABLED false
+
+#if(DEBUG_ENABLED)
+#include "uart.h"
+#endif
 
 volatile bool interrupt = false;
 
@@ -13,6 +17,7 @@ ISR(PCINT0_vect) {
 }
 
 void debug(const char *str, bool newLine = true) {
+  #if(DEBUG_ENABLED)
   while (*str) {
     TxByte(*str++);
   }
@@ -20,6 +25,7 @@ void debug(const char *str, bool newLine = true) {
   if (newLine) {
     TxByte('\n');
   }
+  #endif
 }
 
 void enablePowerDownMode() {
@@ -27,7 +33,7 @@ void enablePowerDownMode() {
 
   debug("[app] going to power down...");
 
-  PORTB &= ~_BV(SPEAKER_UART_PIN);
+  PORTB &= ~_BV(PB1);
 
   set_sleep_mode(SLEEP_MODE_PWR_DOWN);
   cli();
@@ -37,7 +43,7 @@ void enablePowerDownMode() {
   sleep_disable();
   sei();
 
-  PORTB |= _BV(SPEAKER_UART_PIN);
+  PORTB |= _BV(PB1);
 
   debug("[app] waken up!");
 }
@@ -76,13 +82,28 @@ void setupAlarms() {
   sei();
 }
 
+/**
+ * GPIO Layout:
+ *  - PB0 (pin 5) - I2C SDA;
+ *  - PB1 (pin 6) - PWM (speaker) + UART Rx/Tx;
+ *  - PB2 (pin 7) - I2C SCL;
+ *  - PB3 (pin 2) - Alarm Interruption Pin;
+ *  - PB4 (pin 3) - Snooze Button Pin.
+ *
+ * UART Rx/Tx Layout:
+ *            D1
+ * AVR ----+--|>|-----+----- Tx
+ *         |      10K $ R1
+ *         +--------(/^\)--- Rx
+ *              NPN E   C
+ */
 int main(void) {
   // Setup outputs. Set port to HIGH to signify UART default condition.
-  DDRB |= _BV(SPEAKER_UART_PIN);
-  PORTB |= _BV(SPEAKER_UART_PIN);
+  DDRB |= _BV(DDB1);
+  PORTB |= _BV(PB1);
 
   // Setup inputs.
-  DDRB &= ~(_BV(ALARM_INTERRUPTION_PIN) | _BV(SNOOZE_BUTTON_PIN));
+  DDRB &= ~(_BV(DDB3) | _BV(DDB4));
 
   // Enable Alarm interruption that comes from RTC module.
   PCMSK |= _BV(PCINT3);
@@ -92,7 +113,7 @@ int main(void) {
 
   debug("[app] all setup.");
 
-  Speaker::play(MELODY_MODE);
+  Speaker::play(MELODY_BEEP);
 
   interrupt = false;
 
@@ -100,9 +121,20 @@ int main(void) {
     if (interrupt) {
       debug("[clock] alarm triggered!");
 
-      for (uint8_t i = 0; i < 5; i++) {
+      uint8_t snoozePressed = 0;
+      uint8_t snoozePressTime = 0;
+      while(true) {
         Speaker::play(MELODY_ALARM);
-        _delay_ms(200);
+
+        if (!snoozePressed) {
+          snoozePressed = PINB & _BV(PINB4);
+        } else if (snoozePressTime > 3) {
+          break;
+        } else {
+          snoozePressTime += 1;
+        }
+
+        _delay_ms(100);
       }
 
       debug("[clock] scheduling a new alarm.");

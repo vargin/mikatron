@@ -1,6 +1,5 @@
 #include <avr/io.h>
 #include <util/delay.h>
-#include "config.h"
 #include "speaker.h"
 
 // Taken from http://www.technoblogy.com/show?KVO.
@@ -18,8 +17,6 @@ const Melody MELODY_DOUBLE_BEEP = {2, DOUBLE_BEEP_NOTES};
 const Melody MELODY_MODE =        {6, MODE_NOTES};
 
 void Speaker::play(Melody melody) {
-  DDRB |= _BV(SPEAKER_UART_PIN);
-
   const uint8_t TCCR1_BAK = TCCR1;
 
   for (uint8_t i = 0; i < melody.length; i++) {
@@ -45,6 +42,4 @@ void Speaker::play(Melody melody) {
     // Stop the counter.
     TCCR1 = TCCR1_BAK;
   }
-
-  DDRB &= ~_BV(SPEAKER_UART_PIN);
 }
